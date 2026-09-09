@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Naira Rate — live exchange rates</title>
+<style>
+  :root{
+    --ink:#1b2a1f;
+    --paper:#f6f4ee;
+    --green:#0e4d2e;
+    --green-deep:#083820;
+    --gold:#b98a2e;
+    --line:#d8d2c2;
+    --up:#0e4d2e;
+    --down:#9c3b2e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family: "Iowan Old Style","Georgia",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:32px 20px 60px;}
+
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:2px solid var(--green);
+    padding-bottom:14px;
+    margin-bottom:28px;
+  }
+  header h1{
+    font-size:1.5rem;
+    margin:0;
+    font-weight:700;
+    letter-spacing:0.01em;
+  }
+  header .mark{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.72rem;
+    color:var(--gold);
+    border:1px solid var(--gold);
+    padding:3px 8px;
+    border-radius:2px;
+  }
+
+  .updated{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.8rem;
+    color:#6b6456;
+    margin-bottom:24px;
+  }
+
+  .rates{
+    display:grid;
+    gap:0;
+    border-top:1px solid var(--line);
+  }
+  .rate-row{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    align-items:center;
+    gap:14px;
+    padding:18px 4px;
+    border-bottom:1px solid var(--line);
+  }
+  .flag{
+    font-size:1.6rem;
+    width:38px;
+    text-align:center;
+  }
+  .rate-info .code{
+    font-weight:700;
+    font-size:1.05rem;
+  }
+  .rate-info .name{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.78rem;
+    color:#6b6456;
+  }
+  .rate-value{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  .rate-value .amount{
+    font-size:1.15rem;
+    font-weight:700;
+  }
+  .rate-value .per{
+    display:block;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.72rem;
+    color:#6b6456;
+  }
+
+  .converter{
+    margin-top:36px;
+    background:var(--green-deep);
+    color:var(--paper);
+    border-radius:6px;
+    padding:22px 22px 24px;
+  }
+  .converter h2{
+    margin:0 0 16px;
+    font-size:1.05rem;
+    font-weight:700;
+  }
+  .conv-row{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .conv-row input{
+    flex:1;
+    padding:10px 12px;
+    border-radius:4px;
+    border:none;
+    font-size:1rem;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .conv-row select{
+    padding:10px 8px;
+    border-radius:4px;
+    border:none;
+    font-size:0.95rem;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  .conv-result{
+    margin-top:14px;
+    font-size:1.3rem;
+    font-weight:700;
+  }
+  .conv-result span{
+    color:var(--gold);
+  }
+
+  .status{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.85rem;
+    color:#6b6456;
+    padding:30px 4px;
+    text-align:center;
+  }
+
+  footer{
+    margin-top:34px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:0.75rem;
+    color:#8a8272;
+    line-height:1.5;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Naira Rate</h1>
+    <div class="mark">LIVE</div>
+  </header>
+
+  <div class="updated" id="updated">Loading current rates…</div>
+
+  <div class="rates" id="rates">
+    <div class="status">Fetching today's exchange rates…</div>
+  </div>
+
+  <div class="converter">
+    <h2>Convert</h2>
+    <div class="conv-row">
+      <input type="number" id="amount" value="1000" min="0" step="any">
+      <select id="currency"></select>
+    </div>
+    <div class="conv-result" id="result">— <span></span></div>
+  </div>
+
+  <footer>
+    Rates from open.er-api.com, updated roughly once a day. For guidance only — banks and street rates will differ. Built as a starter project: free public API, no key required.
+  </footer>
+
+</div>
+
+<script>
+const CURRENCIES = [
+  { code: "USD", name: "US Dollar", flag: "🇺🇸" },
+  { code: "GBP", name: "British Pound", flag: "🇬🇧" },
+  { code: "EUR", name: "Euro", flag: "🇪🇺" },
+  { code: "CAD", name: "Canadian Dollar", flag: "🇨🇦" },
+  { code: "CNY", name: "Chinese Yuan", flag: "🇨🇳" },
+  { code: "ZAR", name: "South African Rand", flag: "🇿🇦" },
+];
+
+const ratesEl = document.getElementById('rates');
+const updatedEl = document.getElementById('updated');
+const amountEl = document.getElementById('amount');
+const currencyEl = document.getElementById('currency');
+const resultEl = document.getElementById('result');
+
+let ngnPerUnit = {}; // how many NGN per 1 unit of currency
+
+async function loadRates() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/NGN');
+    const data = await res.json();
+    if (data.result !== 'success') throw new Error('API error');
+
+    const naira = 1; // base
+    CURRENCIES.forEach(c => {
+      const ngnToCurrency = data.rates[c.code]; // e.g. 1 NGN = X USD
+      ngnPerUnit[c.code] = 1 / ngnToCurrency; // 1 USD = Y NGN
+    });
+
+    renderRates();
+    populateConverter();
+    updateConversion();
+
+    const d = new Date(data.time_last_update_utc);
+    updatedEl.textContent = 'Updated ' + d.toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' });
+  } catch (err) {
+    ratesEl.innerHTML = '<div class="status">Could not load live rates right now. Check your connection and reload.</div>';
+    updatedEl.textContent = '';
+  }
+}
+
+function renderRates() {
+  ratesEl.innerHTML = '';
+  CURRENCIES.forEach(c => {
+    const value = ngnPerUnit[c.code];
+    const row = document.createElement('div');
+    row.className = 'rate-row';
+    row.innerHTML = `
+      <div class="flag">${c.flag}</div>
+      <div class="rate-info">
+        <div class="code">${c.code}</div>
+        <div class="name">${c.name}</div>
+      </div>
+      <div class="rate-value">
+        <span class="amount">₦${value.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</span>
+        <span class="per">per 1 ${c.code}</span>
+      </div>
+    `;
+    ratesEl.appendChild(row);
+  });
+}
+
+function populateConverter() {
+  currencyEl.innerHTML = '';
+  CURRENCIES.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.code;
+    opt.textContent = `${c.code} → NGN`;
+    currencyEl.appendChild(opt);
+  });
+}
+
+function updateConversion() {
+  const amt = parseFloat(amountEl.value) || 0;
+  const code = currencyEl.value;
+  const rate = ngnPerUnit[code];
+  if (!rate) return;
+  const total = amt * rate;
+  resultEl.innerHTML = `${amt.toLocaleString()} ${code} = <span>₦${total.toLocaleString('en-NG', { maximumFractionDigits: 2 })}</span>`;
+}
+
+amountEl.addEventListener('input', updateConversion);
+currencyEl.addEventListener('change', updateConversion);
+
+loadRates();
+</script>
+</body>
+</html>
